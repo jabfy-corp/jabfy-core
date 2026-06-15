@@ -1,0 +1,37 @@
+name: Chore / Refactor
+description: Maintenance, refactoring, CI, or tooling work
+title: "[Chore] "
+labels: []
+body:
+  - type: checkboxes
+    id: type
+    attributes:
+      label: Issue Type
+      options:
+        - label: "Refactor"
+        - label: "CI / Tooling"
+        - label: "Dependencies"
+        - label: "Performance"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done and why?
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What does this affect? Any risks?
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: "Breaking change"
+        - label: "Requires documentation update"
+        - label: "Requires tests"

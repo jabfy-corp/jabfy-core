@@ -1,0 +1,51 @@
+name: Feature
+description: Propose a new feature or enhancement
+title: "[Feature] "
+labels: []
+body:
+  - type: checkboxes
+    id: type
+    attributes:
+      label: Issue Type
+      options:
+        - label: "Feature"
+        - label: "Enhancement"
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence describing what this adds or improves.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed? What problem does it solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the expected behavior or implementation approach.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you thought about?
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: "Breaking change"
+        - label: "Requires documentation update"
+        - label: "Requires tests"

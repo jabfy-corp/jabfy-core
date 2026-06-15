@@ -1,0 +1,95 @@
+name: Auto-label Issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Apply labels based on issue body checkboxes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            const issueNumber = context.payload.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Map checked items to labels
+            const labelMap = {
+              "Feature":                  ["feature"],
+              "Enhancement":              ["enhancement"],
+              "Bug":                      ["bug"],
+              "Documentation":            ["documentation"],
+              "Refactor":                 ["refactor"],
+              "CI / Tooling":             ["ci"],
+              "Dependencies":             ["dependencies"],
+              "Performance":              ["performance"],
+              "Breaking change":          ["breaking-change"],
+              "Requires documentation update": ["documentation"],
+              "Requires tests":           ["needs-tests"],
+              "Critical (blocks usage)":  ["priority: critical"],
+              "High (major functionality broken)": ["priority: high"],
+              "Medium (workaround exists)": ["priority: medium"],
+              "Low (minor issue)":        ["priority: low"],
+            };
+
+            // Parse checked checkboxes: lines matching "- [x] Label"
+            const checked = [...body.matchAll(/- \[x\] (.+)/gi)].map(m => m[1].trim());
+            console.log("Checked items:", checked);
+
+            const labelsToAdd = new Set();
+            for (const item of checked) {
+              const mapped = labelMap[item];
+              if (mapped) mapped.forEach(l => labelsToAdd.add(l));
+            }
+
+            if (labelsToAdd.size === 0) {
+              console.log("No matching checkboxes found, skipping.");
+              return;
+            }
+
+            console.log("Applying labels:", [...labelsToAdd]);
+
+            // Ensure all labels exist, create missing ones
+            const colorMap = {
+              "feature":           "0075ca",
+              "enhancement":       "a2eeef",
+              "bug":               "d73a4a",
+              "documentation":     "0075ca",
+              "refactor":          "e4e669",
+              "ci":                "f9d0c4",
+              "dependencies":      "0366d6",
+              "performance":       "c5def5",
+              "breaking-change":   "b60205",
+              "needs-tests":       "fbca04",
+              "priority: critical":"b60205",
+              "priority: high":    "e11d48",
+              "priority: medium":  "f97316",
+              "priority: low":     "84cc16",
+            };
+
+            const existingLabels = await github.rest.issues.listLabelsForRepo({ owner, repo, per_page: 100 });
+            const existingNames = existingLabels.data.map(l => l.name);
+
+            for (const label of labelsToAdd) {
+              if (!existingNames.includes(label)) {
+                await github.rest.issues.createLabel({
+                  owner, repo,
+                  name: label,
+                  color: colorMap[label] || "ededed",
+                });
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: [...labelsToAdd],
+            });

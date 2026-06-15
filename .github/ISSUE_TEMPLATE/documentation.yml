@@ -1,0 +1,41 @@
+name: Documentation
+description: Report missing, incorrect, or outdated documentation
+title: "[Docs] "
+labels: []
+body:
+  - type: checkboxes
+    id: type
+    attributes:
+      label: Issue Type
+      options:
+        - label: "Documentation"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is missing, wrong, or unclear?
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Location
+      description: Where is the documentation issue? Link to the file, page, or section.
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: What should the documentation say instead?
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: "README"
+        - label: "Wiki"
+        - label: "Inline code comments"
+        - label: "API reference"
