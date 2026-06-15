@@ -1,0 +1,1 @@
+"""JABFY core application package."""
