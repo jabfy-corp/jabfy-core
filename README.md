@@ -146,6 +146,27 @@ Multiple allowed origins can be separated by commas.
 pytest
 ```
 
+## Conteneur et déploiement
+
+Le dépôt publie une image OCI dans GitHub Container Registry à chaque push vers
+`main` :
+
+```text
+ghcr.io/jabfy-corp/jabfy-core:latest
+ghcr.io/jabfy-corp/jabfy-core:sha-<commit>
+```
+
+Pour un déploiement reproductible, utiliser le digest affiché dans le résumé du
+workflow plutôt que `latest` :
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \
+  ghcr.io/jabfy-corp/jabfy-core@sha256:<digest>
+```
+
+Ollama reste un service externe : l'image ne contient ni modèle ni secret.
+
 ## V1 limitations
 
 - the verifier only checks the known device registry and boolean values
