@@ -155,3 +155,11 @@ pytest
 
 The next security step is extracting `jabfy-guard` into a more advanced policy
 and verification layer before any real device executor is introduced.
+
+## Core refactor: language research
+
+Candidate languages evaluated for a performance-oriented core rewrite:
+
+- Rust
+- .NET
+- Python
