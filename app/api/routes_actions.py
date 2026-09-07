@@ -10,4 +10,4 @@ def act(payload: ActionRequest, request: Request) -> ActionResponse:
     try:
         return request.app.state.action_orchestrator.act(payload)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Ollama request failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"The model backend request failed: {exc}") from exc

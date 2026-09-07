@@ -2,6 +2,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
+from app.schemas.generation import GenerationParams
+
 
 class ActionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -9,6 +11,7 @@ class ActionRequest(BaseModel):
     model: str
     prompt: str
     device_state: dict[str, StrictBool] = Field(default_factory=dict)
+    params: GenerationParams = Field(default_factory=GenerationParams)
 
 
 class UserSituationPayload(BaseModel):

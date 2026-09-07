@@ -1,5 +1,5 @@
 from app.core.action_parser import ActionParseError, parse_action_proposal
-from app.core.ollama_client import OllamaClient
+from app.core.llm_client import LLMClient
 from app.core.prompt_builder import SYSTEM_PROMPT, build_user_message
 from app.core.verification import verify_changes
 from app.schemas.actions import (
@@ -12,8 +12,8 @@ from app.schemas.actions import (
 
 
 class ActionOrchestrator:
-    def __init__(self, ollama_client: OllamaClient) -> None:
-        self._ollama_client = ollama_client
+    def __init__(self, llm_client: LLMClient) -> None:
+        self._llm_client = llm_client
 
     def act(self, request: ActionRequest) -> ActionResponse:
         event = UniversalBusEvent(
@@ -24,13 +24,14 @@ class ActionOrchestrator:
                 device_state=request.device_state,
             ),
         )
-        content = self._ollama_client.propose(
+        content = self._llm_client.propose(
             model=request.model,
             system_prompt=SYSTEM_PROMPT,
             user_message=build_user_message(
                 event.payload.prompt,
                 event.payload.device_state,
             ),
+            params=request.params,
         )
 
         try:
