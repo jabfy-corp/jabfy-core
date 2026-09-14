@@ -1,18 +1,25 @@
 import json
 
 import httpx
+import pytest
 
+from app.core.errors import LLMClientError
 from app.core.openai_client import OpenAICompatibleClient
 from app.schemas.generation import GenerationParams
 
 
-def build_client(handler, api_key: str | None = None) -> OpenAICompatibleClient:
-    client = OpenAICompatibleClient(base_url="http://llm.test/v1", api_key=api_key)
-    client._client = httpx.Client(
-        headers=client._client.headers,
+def build_client(
+    handler,
+    api_key: str | None = None,
+    timeout: float = 5.0,
+) -> OpenAICompatibleClient:
+    """Build a client that routes all requests through *handler* via MockTransport."""
+    return OpenAICompatibleClient(
+        base_url="http://llm.test/v1",
+        api_key=api_key,
+        timeout=timeout,
         transport=httpx.MockTransport(handler),
     )
-    return client
 
 
 def test_lists_models_from_openai_endpoint() -> None:
@@ -91,3 +98,38 @@ def test_sends_no_auth_header_without_key() -> None:
     build_client(handler).list_models()
 
     assert seen["auth"] is None
+
+
+def test_propose_raises_llm_client_error_on_http_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="Internal Server Error")
+
+    with pytest.raises(LLMClientError):
+        build_client(handler).propose("qwen3", "system", "user")
+
+
+def test_list_models_raises_llm_client_error_on_http_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, text="Service Unavailable")
+
+    with pytest.raises(LLMClientError):
+        build_client(handler).list_models()
+
+
+def test_propose_raises_on_error_body() -> None:
+    """llama.cpp-style: HTTP 200 but body contains {"error": ...}."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"error": {"message": "model not found"}})
+
+    with pytest.raises(LLMClientError, match="Backend returned an error"):
+        build_client(handler).propose("missing-model", "system", "user")
+
+
+def test_close_shuts_down_httpx_client() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        return httpx.Response(200, json={"data": []})
+
+    client = build_client(handler)
+    client.close()  # must not raise
+    assert client._client.is_closed

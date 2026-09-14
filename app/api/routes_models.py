@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Request
 
+from app.core.errors import LLMClientError
 from app.schemas.models import ModelsResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["models"])
 
 
@@ -10,9 +14,10 @@ def get_models(request: Request) -> ModelsResponse:
     try:
         models = request.app.state.llm_client.list_models()
         return ModelsResponse(models=models, available=True)
-    except Exception as exc:
+    except LLMClientError as exc:
+        logger.warning("LLM backend unavailable", exc_info=exc)
         return ModelsResponse(
             models=[],
             available=False,
-            reason=f"The model backend is unavailable: {exc}",
+            reason="The model backend is unavailable.",
         )

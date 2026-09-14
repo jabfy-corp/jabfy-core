@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from app.core.config import Settings
+from app.core.errors import LLMClientError  # noqa: F401 — re-exported for callers
 from app.core.openai_client import OpenAICompatibleClient
 from app.schemas.generation import GenerationParams
 
@@ -16,9 +17,19 @@ class LLMClient(Protocol):
         params: GenerationParams | None = None,
     ) -> str: ...
 
+    def close(self) -> None: ...
+
 
 def build_llm_client(settings: Settings) -> LLMClient:
-    return OpenAICompatibleClient(
-        base_url=settings.llm_base_url,
-        api_key=settings.llm_api_key,
-    )
+    match settings.llm_provider:
+        case "openai_compat":
+            return OpenAICompatibleClient(
+                base_url=settings.llm_base_url,
+                api_key=settings.llm_api_key,
+                timeout=settings.llm_timeout,
+            )
+        case _:
+            raise ValueError(
+                f"Unknown LLM provider: {settings.llm_provider!r}. "
+                "Set JABFY_LLM_PROVIDER to a supported value (e.g. 'openai_compat')."
+            )
