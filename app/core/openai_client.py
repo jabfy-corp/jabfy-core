@@ -2,14 +2,21 @@ from typing import Any
 
 import httpx
 
+from app.core.errors import LLMClientError
 from app.schemas.generation import GenerationParams
 
 
 class OpenAICompatibleClient:
     """Client for any OpenAI-compatible chat API.
 
-    Covers a local llama.cpp server (`http://localhost:8080/v1`, no key) and
-    hosted providers (`https://.../v1` with a bearer key).
+    Covers a local llama.cpp server (``http://localhost:8080/v1``, no key) and
+    hosted providers (``https://.../v1`` with a bearer key).
+
+    Raises :exc:`LLMClientError` for any network or protocol failure so callers
+    do not need to import ``httpx`` to handle errors.
+
+    Args:
+        transport: Optional ``httpx.BaseTransport`` injected for testing.
     """
 
     def __init__(
@@ -17,16 +24,23 @@ class OpenAICompatibleClient:
         base_url: str,
         api_key: str | None = None,
         timeout: float = 120.0,
+        transport: httpx.BaseTransport | None = None,
     ) -> None:
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self._base_url = base_url.rstrip("/")
-        self._client = httpx.Client(headers=headers, timeout=timeout)
+        self._client = httpx.Client(headers=headers, timeout=timeout, transport=transport)
+
+    # ------------------------------------------------------------------
+    # LLMClient protocol
 
     def list_models(self) -> list[str]:
-        response = self._client.get(f"{self._base_url}/models")
-        response.raise_for_status()
-        entries: Any = response.json().get("data", [])
-        return [str(entry["id"]) for entry in entries if entry.get("id")]
+        try:
+            response = self._client.get(f"{self._base_url}/models")
+            response.raise_for_status()
+            entries: Any = response.json().get("data", [])
+            return [str(e["id"]) for e in entries if isinstance(e, dict) and e.get("id")]
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            raise LLMClientError(f"Failed to list models: {exc}") from exc
 
     def propose(
         self,
@@ -45,11 +59,24 @@ class OpenAICompatibleClient:
         }
         payload.update((params or GenerationParams()).to_payload())
 
-        response = self._client.post(
-            f"{self._base_url}/chat/completions", json=payload
-        )
-        response.raise_for_status()
-        choices = response.json().get("choices", [])
+        try:
+            response = self._client.post(
+                f"{self._base_url}/chat/completions", json=payload
+            )
+            response.raise_for_status()
+            body = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise LLMClientError(f"chat/completions request failed: {exc}") from exc
+
+        # Some OpenAI-compatible servers (llama.cpp) return HTTP 200 with an
+        # {"error": ...} body instead of a 4xx/5xx status.
+        if "error" in body:
+            raise LLMClientError(f"Backend returned an error: {body['error']}")
+
+        choices = body.get("choices", [])
         if not choices:
             return ""
         return str(choices[0].get("message", {}).get("content", ""))
+
+    def close(self) -> None:
+        self._client.close()
