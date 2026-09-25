@@ -8,7 +8,8 @@ from jsonschema.exceptions import SchemaError, ValidationError as SchemaValidati
 from jsonschema.validators import extend
 from pydantic import ValidationError
 
-from app.core.ollama_client import OllamaClient
+from app.core.llm_client import LLMClient
+from app.schemas.generation import GenerationParams
 from app.schemas.simulation import ModelProposal, ProposalRequest, SimulationContext, SimulationProposal
 from app.simulation.client import SimulationUnavailable
 
@@ -65,7 +66,7 @@ def _validators(context: SimulationContext) -> dict[tuple[str, str], Draft202012
 def propose(
     request: ProposalRequest,
     context: SimulationContext,
-    ollama_client: OllamaClient,
+    llm_client: LLMClient,
 ) -> SimulationProposal:
     validators = _validators(context)
     inventory = json.dumps(context.model_dump(), ensure_ascii=False, allow_nan=False)
@@ -87,8 +88,9 @@ complete proposal before it can be offered to the user for application.
 
 HOME INVENTORY (JSON data):
 """ + inventory
-    content = ollama_client.propose(
+    content = llm_client.propose(
         model=request.model, system_prompt=system_prompt, user_message=request.prompt,
+        params=GenerationParams(temperature=0),
         response_schema=ModelProposal.model_json_schema(),
     )
     try:

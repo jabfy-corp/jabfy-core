@@ -1,14 +1,15 @@
-"""Live-inventory proposals: no simulator, Ollama, or device executor required."""
+"""Live-inventory proposals: no simulator, model backend, or device executor required."""
 
 import json
 from copy import deepcopy
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
+from app.core.errors import LLMClientError
 from app.main import create_app
 from app.schemas.actions import ActionResponse, VerificationDecision
 from app.schemas.simulation import ModelProposal
@@ -57,14 +58,15 @@ def api(context):
         requests.append(request)
         return httpx.Response(200, json=context)
 
-    app = create_app()
+    with patch("app.main.build_llm_client", return_value=Mock()):
+        app = create_app()
     app.state.simulation_client = SimulationClient(
         "http://configured-simulation:8080", transport=httpx.MockTransport(transport),
     )
-    app.state.ollama_client = Mock()
-    app.state.ollama_client.propose.return_value = json.dumps(valid_proposal())
+    app.state.llm_client.propose.return_value = json.dumps(valid_proposal())
     with TestClient(app) as client:
         yield client, app, requests
+    app.state.llm_client.close.assert_called_once()
 
 
 def test_home_discovery_uses_only_the_configured_url_and_timeout(api, context):
@@ -82,10 +84,11 @@ def test_proposal_uses_fresh_custom_inventory_and_never_executes(api, context):
     first = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire le bureau"})
     assert first.status_code == 200
     assert first.json() == {**valid_proposal(), "context_revision": "revision-1"}
-    call = app.state.ollama_client.propose.call_args.kwargs
+    call = app.state.llm_client.propose.call_args.kwargs
     assert call["model"] == "local-model"
     assert call["user_message"] == "Éclaire le bureau"
     assert call["response_schema"] == ModelProposal.model_json_schema()
+    assert call["params"].temperature == 0
     assert "desk_strip_42" in call["system_prompt"]
     assert "Ruban du bureau" in call["system_prompt"]
     assert "untrusted data" in call["system_prompt"]
@@ -95,7 +98,7 @@ def test_proposal_uses_fresh_custom_inventory_and_never_executes(api, context):
     context["devices"][0]["name"] = "Nouveau nom"
     second = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire le bureau"})
     assert second.json()["context_revision"] == "revision-2"
-    assert "Nouveau nom" in app.state.ollama_client.propose.call_args.kwargs["system_prompt"]
+    assert "Nouveau nom" in app.state.llm_client.propose.call_args.kwargs["system_prompt"]
     assert len(requests) == 2
     assert all(request.method == "GET" for request in requests)
 
@@ -116,7 +119,7 @@ def test_any_invalid_command_rejects_the_entire_proposal(api, command):
     client, app, _ = api
     proposal = valid_proposal()
     proposal["commands"].append(command)
-    app.state.ollama_client.propose.return_value = json.dumps(proposal)
+    app.state.llm_client.propose.return_value = json.dumps(proposal)
     response = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire"})
     assert response.status_code == 502
     assert "commands" not in response.json()
@@ -135,7 +138,7 @@ def test_any_invalid_command_rejects_the_entire_proposal(api, command):
 ])
 def test_malformed_model_output_is_not_an_executable_success(api, content):
     client, app, _ = api
-    app.state.ollama_client.propose.return_value = content
+    app.state.llm_client.propose.return_value = content
     response = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire"})
     assert response.status_code == 502
     assert "commands" not in response.json()
@@ -154,10 +157,10 @@ def test_nested_parameter_schema_is_enforced(api, context):
     }
     proposal = valid_proposal()
     proposal["commands"][0].update(action="set_color", params={"color": {"r": 128}})
-    app.state.ollama_client.propose.return_value = json.dumps(proposal)
+    app.state.llm_client.propose.return_value = json.dumps(proposal)
     assert client.post("/simulation/propose", json={"model": "local-model", "prompt": "Rouge"}).status_code == 200
     proposal["commands"][0]["params"]["color"]["r"] = 999
-    app.state.ollama_client.propose.return_value = json.dumps(proposal)
+    app.state.llm_client.propose.return_value = json.dumps(proposal)
     assert client.post("/simulation/propose", json={"model": "local-model", "prompt": "Rouge"}).status_code == 502
 
 
@@ -174,23 +177,25 @@ def test_invalid_inventory_blocks_inference(api, context, invalid_inventory):
         context["devices"][0]["actions"][0]["params"]["$ref"] = "http://other-host/schema"
     response = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire"})
     assert response.status_code == 503
-    app.state.ollama_client.propose.assert_not_called()
+    app.state.llm_client.propose.assert_not_called()
 
 
-def test_unavailable_simulator_and_ollama_report_errors(api):
+def test_unavailable_simulator_and_model_backend_report_errors(api):
     client, app, _ = api
-    app.state.ollama_client.propose.side_effect = ConnectionError("Ollama offline")
+    app.state.llm_client.propose.side_effect = LLMClientError("private upstream details")
     response = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire"})
     assert response.status_code == 502
+    assert response.json()["detail"] == "The model backend is unavailable."
+    assert "private upstream details" not in response.text
 
     def timeout(request):
         raise httpx.ReadTimeout("Simulator offline", request=request)
 
     app.state.simulation_client = SimulationClient("http://configured-simulation", transport=httpx.MockTransport(timeout))
-    app.state.ollama_client.propose.reset_mock()
+    app.state.llm_client.propose.reset_mock()
     assert client.get("/simulation/home").status_code == 503
     assert client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire"}).status_code == 503
-    app.state.ollama_client.propose.assert_not_called()
+    app.state.llm_client.propose.assert_not_called()
 
 
 @pytest.mark.parametrize("url", ["", "file:///etc/passwd", "http://localhost:invalid", "http://user:pass@localhost"])
@@ -207,7 +212,7 @@ def test_client_cannot_supply_a_simulator_destination(api):
     })
     assert response.status_code == 422
     assert requests == []
-    app.state.ollama_client.propose.assert_not_called()
+    app.state.llm_client.propose.assert_not_called()
 
 
 def test_simulation_url_setting_comes_from_environment(monkeypatch):
