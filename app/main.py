@@ -4,9 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes_actions import router as actions_router
 from app.api.routes_health import router as health_router
 from app.api.routes_models import router as models_router
+from app.api.routes_simulation import router as simulation_router
 from app.core.action_orchestrator import ActionOrchestrator
 from app.core.config import get_settings
 from app.core.ollama_client import OllamaClient
+from app.simulation.client import SimulationClient
 
 
 def create_app() -> FastAPI:
@@ -27,10 +29,12 @@ def create_app() -> FastAPI:
     ollama_client = OllamaClient(host=settings.ollama_host)
     application.state.ollama_client = ollama_client
     application.state.action_orchestrator = ActionOrchestrator(ollama_client)
+    application.state.simulation_client = SimulationClient(settings.simulation_url)
 
     application.include_router(health_router)
     application.include_router(models_router)
     application.include_router(actions_router)
+    application.include_router(simulation_router)
     return application
 
 

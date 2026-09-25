@@ -22,13 +22,20 @@ class OllamaClient:
                 names.append(str(name))
         return names
 
-    def propose(self, model: str, system_prompt: str, user_message: str) -> str:
+    def propose(
+        self, model: str, system_prompt: str, user_message: str,
+        response_schema: dict[str, Any] | None = None,
+    ) -> str:
+        structured = {}
+        if response_schema is not None:
+            structured = {"format": response_schema, "options": {"temperature": 0}}
         response: Any = self._client.chat(
             model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
+            **structured,
         )
         message = getattr(response, "message", None)
         if message is not None:

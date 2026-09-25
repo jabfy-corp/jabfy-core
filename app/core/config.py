@@ -9,6 +9,7 @@ class Settings(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     ollama_host: str = "http://localhost:11434"
+    simulation_url: str = "http://127.0.0.1:8080"
     allowed_origins: list[str] = ["http://localhost:5173"]
 
 
@@ -20,6 +21,7 @@ def get_settings() -> Settings:
         host=os.getenv("JABFY_HOST", "0.0.0.0"),
         port=int(os.getenv("JABFY_PORT", "8000")),
         ollama_host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
+        simulation_url=os.getenv("JABFY_SIMULATION_URL", "http://127.0.0.1:8080"),
         allowed_origins=[
             origin.strip() for origin in origins.split(",") if origin.strip()
         ],
