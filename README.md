@@ -303,6 +303,9 @@ Le serveur de modèle reste un service externe : l'image ne contient ni modèle 
 - reasoning models that return their output in `reasoning_content` leave
   `content` empty, and the proposal is then rejected by the parser
 - `min_p` is ignored by backends that do not implement it
+- actions are sent on the `zigbee` transport only (`ActionOrchestrator`), so Core
+  reaches MQTT devices; simulator devices served over HTTP or Modbus are driven
+  from the simulator dashboard, not from Core
 
 The next security step is extracting `jabfy-guard` into a more advanced policy
 and verification layer before any real device executor is introduced.
