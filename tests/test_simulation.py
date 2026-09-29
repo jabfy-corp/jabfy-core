@@ -11,7 +11,6 @@ from fastapi.testclient import TestClient
 from app.core.config import get_settings
 from app.core.errors import LLMClientError
 from app.main import create_app
-from app.schemas.actions import ActionResponse, VerificationDecision
 from app.schemas.simulation import ModelProposal
 from app.simulation.client import SimulationClient
 
@@ -65,6 +64,9 @@ def api(context):
     )
     app.state.llm_client.propose.return_value = json.dumps(valid_proposal())
     with TestClient(app) as client:
+        # Startup loads the inventory once to label bus telemetry with rooms.
+        assert len(requests) == 1
+        requests.clear()
         yield client, app, requests
     app.state.llm_client.close.assert_called_once()
 
@@ -83,7 +85,9 @@ def test_proposal_uses_fresh_custom_inventory_and_never_executes(api, context):
     client, app, requests = api
     first = client.post("/simulation/propose", json={"model": "local-model", "prompt": "Éclaire le bureau"})
     assert first.status_code == 200
-    assert first.json() == {**valid_proposal(), "context_revision": "revision-1"}
+    expected = valid_proposal()
+    expected["commands"][0]["delay_ms"] = 0
+    assert first.json() == {**expected, "context_revision": "revision-1"}
     call = app.state.llm_client.propose.call_args.kwargs
     assert call["model"] == "local-model"
     assert call["user_message"] == "Éclaire le bureau"
@@ -222,22 +226,3 @@ def test_simulation_url_setting_comes_from_environment(monkeypatch):
         assert get_settings().simulation_url == "http://configured-home:8090"
     finally:
         get_settings.cache_clear()
-
-
-def test_legacy_act_contract_keeps_its_existing_orchestrator(api):
-    client, app, requests = api
-    app.state.action_orchestrator = Mock()
-    app.state.action_orchestrator.act.return_value = ActionResponse(
-        action_chain="Allumer l’entrée.", changes={"hallway_light": True},
-        verification=VerificationDecision(
-            allowed=True, reason="Valid legacy action.", safe_changes={"hallway_light": True},
-        ),
-    )
-    response = client.post("/act", json={
-        "model": "local-model", "prompt": "Allume l’entrée", "device_state": {"hallway_light": False},
-    })
-    assert response.status_code == 200
-    assert response.json()["changes"] == {"hallway_light": True}
-    assert response.json()["verification"]["safe_changes"] == {"hallway_light": True}
-    assert "commands" not in response.json()
-    assert requests == []

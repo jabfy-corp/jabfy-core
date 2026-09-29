@@ -1,8 +1,12 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
+
+
+DEFAULT_BUS_CONFIG = Path(__file__).resolve().parents[2] / "config" / "bus.json"
 
 
 class Settings(BaseModel):
@@ -14,6 +18,10 @@ class Settings(BaseModel):
     llm_api_key: str | None = None
     llm_timeout: float = 120.0
     allowed_origins: list[str] = ["http://localhost:5173"]
+    mqtt_broker: str = ""
+    bus_config: str = str(DEFAULT_BUS_CONFIG)
+    headless_model: str = ""
+    headless_cooldown: float = 30.0
 
 
 @lru_cache
@@ -36,4 +44,8 @@ def get_settings() -> Settings:
         allowed_origins=[
             origin.strip() for origin in origins.split(",") if origin.strip()
         ],
+        mqtt_broker=os.getenv("JABFY_MQTT_BROKER", "").strip(),
+        bus_config=os.getenv("JABFY_BUS_CONFIG") or str(DEFAULT_BUS_CONFIG),
+        headless_model=os.getenv("JABFY_HEADLESS_MODEL", "").strip(),
+        headless_cooldown=float(os.getenv("JABFY_HEADLESS_COOLDOWN_SECONDS", "30")),
     )

@@ -26,6 +26,12 @@ class SimulationCapability(InventoryModel):
     params: dict[str, Any]
 
 
+class SimulationBusBinding(InventoryModel):
+    entity_id: str = Field(min_length=1)
+    domain: str = Field(min_length=1)
+    topic: str = Field(min_length=1)
+
+
 class SimulationDevice(InventoryModel):
     id: str = Field(min_length=1)
     name: str
@@ -35,6 +41,7 @@ class SimulationDevice(InventoryModel):
     state: dict[str, Any]
     actions: list[SimulationCapability]
     sensor_events: list[Any] = Field(default_factory=list)
+    bus: SimulationBusBinding | None = None
 
 
 class SimulationContext(InventoryModel):
@@ -81,19 +88,29 @@ class ProposalRequest(BaseModel):
     prompt: str = Field(min_length=1)
 
 
+MAX_SEQUENCE_MS = 60_000
+
+
 class SimulationCommand(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
     device_id: str = Field(min_length=1)
     action: str = Field(min_length=1)
     params: dict[str, Any]
+    delay_ms: StrictInt = Field(0, ge=0, le=10_000)
 
 
 class ModelProposal(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
     explanation: str = Field(min_length=1)
-    commands: list[SimulationCommand]
+    commands: list[SimulationCommand] = Field(max_length=60)
+
+    @model_validator(mode="after")
+    def bounded_sequence(self) -> "ModelProposal":
+        if sum(command.delay_ms for command in self.commands) > MAX_SEQUENCE_MS:
+            raise ValueError("The command sequence must not last longer than 60 seconds")
+        return self
 
 
 class SimulationProposal(ModelProposal):

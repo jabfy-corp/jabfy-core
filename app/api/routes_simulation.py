@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/simulation", tags=["simulation"])
 
 
-@router.get("/home", response_model=SimulationContext)
+@router.get("/home", response_model=SimulationContext, response_model_exclude_unset=True)
 def home(request: Request) -> SimulationContext:
     try:
         return request.app.state.simulation_client.fetch_context()
