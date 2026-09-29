@@ -80,7 +80,7 @@ def create_app() -> FastAPI:
     application.include_router(models_router)
     application.include_router(simulation_router)
     application.include_router(bus_router)
-    register_ws_routes(application, runtime.bus)
+    register_ws_routes(application, runtime.bus, allowed_origins=settings.allowed_origins)
     return application
 
 
