@@ -261,6 +261,16 @@ use `JABFY_LLM_BASE_URL` directly (e.g. `http://ollama:11434/v1` inside that sta
 pytest
 ```
 
+Full pipeline integration test (MASTER_PLAN §2.7): it starts Mosquitto in
+Docker, the sibling `jabfy-simulation` checkout and Core, with a fixed
+OpenAI-compatible model answer, then triggers a simulated motion and checks
+`command.requested` → `command.approved` → `command.executed` on
+`/bus/events`, the simulated lamp and `/audit/verify`:
+
+```bash
+JABFY_INTEGRATION=1 pytest tests/integration
+```
+
 ## Conteneur et déploiement
 
 Le dépôt publie une image OCI dans GitHub Container Registry à chaque push vers
