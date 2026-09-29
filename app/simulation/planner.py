@@ -9,6 +9,7 @@ from jsonschema.validators import extend
 from pydantic import ValidationError
 
 from app.core.llm_client import LLMClient
+from app.core.sanitize import MAX_MESSAGE_LENGTH, sanitize_text, sanitize_tree
 from app.schemas.generation import GenerationParams
 from app.schemas.simulation import ModelProposal, ProposalRequest, SimulationContext, SimulationProposal
 from app.simulation.client import SimulationUnavailable
@@ -71,7 +72,7 @@ def propose(
     validators = _validators(context)
     # Bus addresses are routing data for Core, not choices for the model.
     inventory = json.dumps(
-        context.model_dump(exclude={"devices": {"__all__": {"bus"}}}),
+        sanitize_tree(context.model_dump(exclude={"devices": {"__all__": {"bus"}}})),
         ensure_ascii=False, allow_nan=False,
     )
     system_prompt = """You propose actions for a simulated smart home. You never execute actions.
@@ -109,7 +110,8 @@ complete proposal before it can be offered to the user for application.
 HOME INVENTORY (JSON data):
 """ + inventory
     content = llm_client.propose(
-        model=request.model, system_prompt=system_prompt, user_message=request.prompt,
+        model=request.model, system_prompt=system_prompt,
+        user_message=sanitize_text(request.prompt, MAX_MESSAGE_LENGTH, multiline=True),
         params=GenerationParams(temperature=0),
         response_schema=ModelProposal.model_json_schema(),
     )

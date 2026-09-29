@@ -19,6 +19,7 @@ from app.core.bus_runtime import BusRuntime
 from app.core.errors import LLMClientError
 from app.core.llm_client import LLMClient
 from app.core.run_journal import RunJournal
+from app.core.sanitize import sanitize_tree
 from app.schemas.simulation import ProposalRequest, SimulationContext
 from app.simulation.client import SimulationUnavailable
 from app.simulation.planner import InvalidSimulationProposal, propose
@@ -108,11 +109,11 @@ class ActionOrchestrator:
         if last is not None and now - last < self._cooldown:
             return
         self._sensor_runs[entity.id] = now
-        situation = {
+        situation = sanitize_tree({
             "trigger": "sensor", "entity_id": entity.id, "class": entity.entity_class,
             "room": entity.location, "previous": previous, "value": value,
             "time": message.timestamp,
-        }
+        })
         run_id = str(uuid4())
         self._journal.create(run_id, source="sensor", model=self._headless_model, request=situation)
         self._enqueue(Job(run_id, self._headless_model, json.dumps(situation, ensure_ascii=False)))
