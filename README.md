@@ -294,5 +294,10 @@ Le serveur de modèle reste un service externe : l'image ne contient ni modèle 
   `content` empty, and the proposal is then rejected by the parser
 - `min_p` is ignored by backends that do not implement it
 
-The next security step is extracting `jabfy-guard` into a more advanced policy
-and verification layer before any real device executor is introduced.
+In the V0.0.1 virtual-home stack, final authorization is performed by jabfy-guard
+inside the simulator's Bus pipeline, after the user applies a proposal. Core remains
+proposal-only and rejects inventory from an inactive simulation. Set
+`JABFY_LLM_BASE_URL=http://ollama:11434/v1` and
+`JABFY_SIMULATION_URL=http://jabfy-sim:8080` in the shared Docker network.
+See the sibling jabfy-deploy repository's `docs/v0.0.1.md` for the complete launcher.
+Physical device execution and authenticated multi-user operation remain out of scope.
