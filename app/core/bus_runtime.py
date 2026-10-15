@@ -18,6 +18,7 @@ from jabfy_bus.execution.executor import ExecutionLayer
 from jabfy_bus.verification.engine import VerificationEngine
 from jabfy_bus.verification.policies import Policy
 
+from app.core.guard import CoreGuard
 from app.schemas.simulation import SimulationContext
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,8 @@ class BusRuntime:
         self.registry.attach(self.bus)
         self.z2m = Zigbee2MQTTAdapter(self.bus, base_topic=base_topic, name="core_z2m_adapter")
         self.z2m.start()
-        self.verification = VerificationEngine(self.bus, policies=policies)
+        self.guard = CoreGuard(policies)
+        self.verification = VerificationEngine(self.bus, authorizer=self.guard)
         self.verification.attach()
         self.execution = ExecutionLayer(self.bus, audit=self.audit)
         self.execution.attach()
@@ -77,6 +79,7 @@ class BusRuntime:
 
     def register_inventory(self, context: SimulationContext) -> None:
         """Telemetry carries the room once the adapter knows each wire name."""
+        self.guard.load(context)
         prefix = self.base_topic + "/"
         for device in context.devices:
             if device.bus is not None and device.bus.topic.startswith(prefix):

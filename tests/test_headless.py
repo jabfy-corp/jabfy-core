@@ -185,7 +185,7 @@ def test_bus_rejection_stops_the_sequence():
     h, result = run(scenario)
     assert result["status"] == "rejected"
     assert [s["status"] for s in result["steps"]] == ["rejected"]
-    assert "default deny" in result["error"]
+    assert "Sensitive actions" in result["error"]
     assert h.sent == []
     assert h.runtime.audit.verify()
 

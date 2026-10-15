@@ -244,18 +244,19 @@ docker run --rm -p 8000:8000 \
 
 Le serveur de modèle reste un service externe : l'image ne contient ni modèle ni secret.
 
-`jabfy-bus` n'étant pas publié, la construction locale de l'image demande son
-dépôt voisin comme contexte supplémentaire :
+`jabfy-bus` et `jabfy-guard` n'étant pas publiés, la construction locale de l'image
+demande leurs dépôts voisins comme contextes supplémentaires :
 
 ```bash
-docker build --build-context jabfy-bus=../jabfy-bus -t jabfy-core .
+docker build --build-context jabfy-bus=../jabfy-bus --build-context jabfy-guard=../jabfy-guard -t jabfy-core .
 ```
 
 ## V1 limitations
 
 - `/simulation/propose` checks the current simulator's advertised capabilities
-- verification policies (`config/bus.json`) only allow lights, switches and
-  the thermostat
+- jabfy-guard authorizes every command of Core's bus, with rules built from
+  `config/bus.json`: only lights, switches and the thermostat are allowed, at most
+  60 commands per minute per policy
 - runs are processed one at a time; the run journal is in memory
 - reasoning models that return their output in `reasoning_content` leave
   `content` empty, and the proposal is then rejected by the parser
