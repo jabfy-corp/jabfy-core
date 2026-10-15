@@ -43,7 +43,10 @@ class SimulationClient:
                 response.raise_for_status()
                 data = response.json()
                 json.dumps(data, allow_nan=False)
-                return SimulationContext.model_validate(data)
+                context = SimulationContext.model_validate(data)
+                if context.status != "running":
+                    raise SimulationUnavailable("The configured simulation is not running.")
+                return context
         except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise SimulationUnavailable("The configured simulator is unavailable.") from exc
         except (ValueError, ValidationError) as exc:
