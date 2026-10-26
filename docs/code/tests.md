@@ -19,6 +19,6 @@ Total : **67 tests** répartis dans 12 fichiers (comptés par `def test_`).
 
 ## À retenir
 
-- `test_headless.py` est le plus important : séquence dans l'ordre et à l'heure, refus du bus qui arrête la séquence, capteur + cooldown. Ce sont les 3 configs « Démo A/B/C » de `.vscode/launch.json`.
+- `test_headless.py` est le plus important : séquence dans l'ordre et à l'heure, refus du bus qui arrête la séquence, capteur + cooldown.
 - `test_action_parser`, `test_prompt_builder`, `test_verification` testent du code hérité non monté.
-- Lancer : `PYTHONPATH=../jabfy-guard/src .venv/bin/python -m pytest -q` depuis `repos/jabfy-core`.
+- Lancer : `pytest` à la racine du dépôt, une fois l'[installation](../installation.md) faite.

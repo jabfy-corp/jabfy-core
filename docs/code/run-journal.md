@@ -26,7 +26,3 @@ Docstring du module : *Bounded per-run record built from bus messages.*
 - **Utilise** : jabfy_bus/core/bus.py (jabfy-bus), jabfy_bus/core/message.py (jabfy-bus)
 - **Utilisé par** : [app/core/action_orchestrator.py](action-orchestrator.md), [app/main.py](main.md)
 - **Testé par** : `tests/test_headless.py` → [tests de jabfy-core](tests.md)
-
-## Questions fréquentes
-
-- Question « qu'as-tu dû comprendre dans le code IA ? » → `STEP_RANK`.

@@ -1,13 +1,12 @@
 # Bus integration and headless reasoning
 
-This document describes the changes on branch `core-12-bus-integration`
-(MASTER_PLAN Phase 2). It is meant both for readers new to Jabfy and for
-developers reviewing the pull request.
+This document describes how Core hosts the bus and reasons without a client
+(headless mode). It is meant both for readers new to Jabfy and for developers.
 
 ## What changed, in one paragraph
 
 Core no longer only *proposes* actions. It now hosts the `jabfy-bus` pipeline
-in its own process (MASTER_PLAN Option A), subscribes to bus events, asks the
+in its own process, subscribes to bus events, asks the
 model for a plan, and publishes each resulting command as `command.requested`.
 Every command still goes through the bus `VerificationEngine` before the
 `ExecutionLayer` sends it to the device over MQTT. The model never calls a
@@ -199,8 +198,8 @@ The image is built with an extra build context:
 docker build --build-context jabfy-bus=../jabfy-bus -t jabfy-core .
 ```
 
-This Core branch requires the matching jabfy-bus branch (`user_situation`
-message type, `allowed_origins` on WebSocket routes).
+Core requires a jabfy-bus version that provides the `user_situation` message
+type and `allowed_origins` on WebSocket routes.
 
 ## Tests
 

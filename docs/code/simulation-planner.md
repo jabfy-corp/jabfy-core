@@ -28,7 +28,3 @@ Docstring du module : *Build proposals from a live inventory and validate every 
 - **Utilise** : [app/core/llm_client.py](llm-client.md), [app/core/sanitize.py](sanitize.md), [app/schemas/generation.py](schemas-generation.md), [app/schemas/simulation.py](schemas-simulation.md), [app/simulation/client.py](simulation-client.md)
 - **Utilisé par** : [app/api/routes_simulation.py](routes-simulation.md), [app/core/action_orchestrator.py](action-orchestrator.md)
 - **Testé par** : `tests/test_sanitize.py` → [tests de jabfy-core](tests.md)
-
-## Questions fréquentes
-
-- « Le LLM peut-il inventer un appareil ? » → refusé l.121-124.

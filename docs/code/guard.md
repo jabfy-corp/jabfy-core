@@ -4,8 +4,6 @@
 
 Dépôt : [jabfy-core](README.md) · 104 lignes · statut : **actif**
 
-Docstring du module : *jabfy-guard authorizes every command of Core's bus (MASTER_PLAN §4: single verification pipeline).*
-
 ## À retenir
 
 - `CoreGuard` l.40 ; `load` l.49 : une règle guard par policy de `bus.json`, limitée aux appareils de ses domaines.
@@ -29,7 +27,3 @@ Docstring du module : *jabfy-guard authorizes every command of Core's bus (MASTE
 - **Utilise** : jabfy_bus/core/message.py (jabfy-bus), jabfy_bus/core/types.py (jabfy-bus), jabfy_bus/verification/policies.py (jabfy-bus), [app/schemas/simulation.py](schemas-simulation.md), src/jabfy_guard/__init__.py (jabfy-guard)
 - **Utilisé par** : [app/core/bus_runtime.py](bus-runtime.md)
 - **Testé par** : `tests/test_guard.py` → [tests de jabfy-core](tests.md)
-
-## Questions fréquentes
-
-- « Pourquoi unlock est refusé ? » → pas de policy pour le domaine lock ⇒ `NO_MATCHING_POLICY`.

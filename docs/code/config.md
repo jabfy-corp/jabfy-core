@@ -23,7 +23,3 @@ Dépôt : [jabfy-core](README.md) · 51 lignes · statut : **actif**
 - **Utilise** : aucun fichier JABFY documenté (bibliothèques externes seulement)
 - **Utilisé par** : [app/core/llm_client.py](llm-client.md), [app/main.py](main.md)
 - **Testé par** : `tests/test_guard.py`, `tests/test_headless.py`, `tests/test_llm_client.py`, `tests/test_simulation.py` → [tests de jabfy-core](tests.md)
-
-## Questions fréquentes
-
-- « Comment Core trouve le modèle ? » → `JABFY_LLM_BASE_URL` (ou `OLLAMA_HOST` par compat).

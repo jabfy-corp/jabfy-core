@@ -1,6 +1,6 @@
 # `app/schemas/actions.py`
 
-> **Rôle** — Modèles de l'ancienne API d'actions (PR #10).
+> **Rôle** — Modèles de l'ancienne API d'actions.
 
 Dépôt : [jabfy-core](README.md) · 42 lignes · statut : **hérité — importé seulement par `routes_actions.py` (non monté) et des tests**
 

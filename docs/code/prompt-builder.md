@@ -1,6 +1,6 @@
 # `app/core/prompt_builder.py`
 
-> **Rôle** — Ancien constructeur de prompt (PR #10).
+> **Rôle** — Ancien constructeur de prompt.
 
 Dépôt : [jabfy-core](README.md) · 34 lignes · statut : **hérité — importé seulement par `routes_actions.py` (non monté) et des tests**
 

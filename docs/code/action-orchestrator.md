@@ -4,8 +4,6 @@
 
 Dépôt : [jabfy-core](README.md) · 200 lignes · statut : **actif**
 
-Docstring du module : *Bus participant (MASTER_PLAN §2.2): situations in, command.requested out.*
-
 ## À retenir
 
 - `attach` l.72 s'abonne à `user_situation`, `telemetry`, `state_changed`.
@@ -30,8 +28,3 @@ Docstring du module : *Bus participant (MASTER_PLAN §2.2): situations in, comma
 - **Utilise** : jabfy_bus/core/message.py (jabfy-bus), jabfy_bus/core/types.py (jabfy-bus), [app/core/bus_runtime.py](bus-runtime.md), [app/core/errors.py](errors.md), [app/core/llm_client.py](llm-client.md), [app/core/run_journal.py](run-journal.md), [app/core/sanitize.py](sanitize.md), [app/schemas/simulation.py](schemas-simulation.md), [app/simulation/client.py](simulation-client.md), [app/simulation/planner.py](simulation-planner.md)
 - **Utilisé par** : [app/main.py](main.md)
 - **Testé par** : `tests/test_headless.py` → [tests de jabfy-core](tests.md)
-
-## Questions fréquentes
-
-- « Montre-moi où la commande part » → l.183.
-- « Que se passe-t-il si la lampe est éteinte à la main pendant la séquence ? » → rien, contexte périmé.

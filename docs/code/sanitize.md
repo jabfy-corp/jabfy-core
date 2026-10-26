@@ -4,8 +4,6 @@
 
 Dépôt : [jabfy-core](README.md) · 44 lignes · statut : **actif**
 
-Docstring du module : *Sanitisation of external strings before they reach the model (MASTER_PLAN §2.5).*
-
 ## À retenir
 
 - `sanitize_text` l.18, `sanitize_tree` l.36 ; bornes `MAX_FIELD_LENGTH` l.7, `MAX_MESSAGE_LENGTH` l.8.

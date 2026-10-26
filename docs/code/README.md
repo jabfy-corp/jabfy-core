@@ -41,7 +41,7 @@ flowchart LR
 
 | fichier | rôle | statut |
 |---|---|---|
-| [app/api/routes_actions.py](routes-actions.md) | Ancienne route d'actions (PR #10) : prompt → texte libre → parseur d'actions → vérification. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
+| [app/api/routes_actions.py](routes-actions.md) | Ancienne route d'actions : prompt → texte libre → parseur d'actions → vérification. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
 | [app/api/routes_bus.py](routes-bus.md) | Routes HTTP du mode headless : soumettre une situation (`POST /prompt`), suivre un run, lire l'état et vérifier l'audit. | actif |
 | [app/api/routes_health.py](routes-health.md) | `GET /health` : sonde de vie de Core. | actif |
 | [app/api/routes_models.py](routes-models.md) | `GET /models` : liste les modèles exposés par le backend LLM. | actif |
@@ -59,7 +59,7 @@ flowchart LR
 | [app/core/guard.py](guard.md) | Adaptateur entre le bus et jabfy-guard : construit les règles guard depuis `config/bus.json` + l'inventaire, puis juge chaque commande. | actif |
 | [app/core/llm_client.py](llm-client.md) | Contrat (`Protocol`) d'un client modèle + fabrique `build_llm_client` selon `JABFY_LLM_PROVIDER`. | actif |
 | [app/core/openai_client.py](openai-client.md) | Client HTTP pour toute API compatible OpenAI (llama.cpp, Ollama `/v1`, cloud). | actif |
-| [app/core/prompt_builder.py](prompt-builder.md) | Ancien constructeur de prompt (PR #10). | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
+| [app/core/prompt_builder.py](prompt-builder.md) | Ancien constructeur de prompt. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
 | [app/core/run_journal.py](run-journal.md) | Journal des runs : garde pour chaque run son statut et ses étapes (requested → approved/rejected → executed/failed) en écoutant le bus. | actif |
 | [app/core/sanitize.py](sanitize.md) | Nettoie tout texte externe avant le modèle : caractères de contrôle/invisibles, délimiteurs de prompt, longueur. | actif |
 | [app/core/verification.py](verification.md) | Ancienne vérification `verify_changes` avant guard. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
@@ -74,7 +74,7 @@ flowchart LR
 
 | fichier | rôle | statut |
 |---|---|---|
-| [app/schemas/actions.py](schemas-actions.md) | Modèles de l'ancienne API d'actions (PR #10). | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
+| [app/schemas/actions.py](schemas-actions.md) | Modèles de l'ancienne API d'actions. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
 | [app/schemas/devices.py](schemas-devices.md) | `DeviceState` : ancien modèle d'état d'appareil. | hérité — importé seulement par `routes_actions.py` (non monté) et des tests |
 | [app/schemas/generation.py](schemas-generation.md) | `GenerationParams` : paramètres d'échantillonnage (température, etc.) envoyés au backend. | actif |
 | [app/schemas/models.py](schemas-models.md) | `ModelsResponse` : réponse de `GET /models`. | actif |
