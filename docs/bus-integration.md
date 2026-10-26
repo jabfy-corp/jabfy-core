@@ -1,6 +1,6 @@
 # Bus integration and headless reasoning
 
-This document describes the changes on branch `core-XX-bus-integration`
+This document describes the changes on branch `core-12-bus-integration`
 (MASTER_PLAN Phase 2). It is meant both for readers new to Jabfy and for
 developers reviewing the pull request.
 
