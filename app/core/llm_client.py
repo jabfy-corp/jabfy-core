@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.core.config import Settings
 from app.core.errors import LLMClientError  # noqa: F401 — re-exported for callers
@@ -15,6 +15,7 @@ class LLMClient(Protocol):
         system_prompt: str,
         user_message: str,
         params: GenerationParams | None = None,
+        response_schema: dict[str, Any] | None = None,
     ) -> str: ...
 
     def close(self) -> None: ...

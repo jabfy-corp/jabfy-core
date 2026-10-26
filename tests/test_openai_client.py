@@ -69,6 +69,31 @@ def test_propose_without_params_sends_no_sampling_keys() -> None:
     assert set(captured) == {"model", "messages", "stream"}
 
 
+def test_propose_forwards_optional_schema_without_changing_legacy_calls() -> None:
+    captured = {}
+    schema = {"type": "object", "required": ["explanation", "commands"]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"explanation":"ok","commands":[]}'}}],
+        })
+
+    client = build_client(handler)
+    try:
+        result = client.propose(
+            "local-model", "system", "user",
+            params=GenerationParams(temperature=0), response_schema=schema,
+        )
+    finally:
+        client.close()
+    assert json.loads(result)["commands"] == []
+    assert captured["response_format"] == {
+        "type": "json_schema", "json_schema": {"name": "jabfy_proposal", "schema": schema},
+    }
+    assert captured["temperature"] == 0
+
+
 def test_propose_returns_empty_string_without_choices() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"choices": []})
