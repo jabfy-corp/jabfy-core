@@ -26,6 +26,7 @@ jabfy-core n'est pas relié à jabfy-bus sur `main` : il utilise son propre mini
 - [Installation et lancement](installation.md)
 - [Fonctionnement interne](fonctionnement.md)
 - [Interfaces](interfaces.md)
+- [Tests](tests.md)
 
 ## Tests
 
@@ -33,7 +34,7 @@ jabfy-core n'est pas relié à jabfy-bus sur `main` : il utilise son propre mini
 pytest
 ```
 
-Les tests sont unitaires et n'ont besoin d'aucun serveur LLM (le client HTTP est injectable). Ils couvrent le parseur d'actions, le vérificateur, le constructeur de prompt, le client OpenAI-compatible et les paramètres de génération. La CI (`ci.yml`) les lance en Python 3.11 sur chaque PR vers `main`.
+30 tests unitaires, sans serveur LLM. Détail, couverture et conventions : [Tests](tests.md).
 
 ## État actuel et TODO
 
