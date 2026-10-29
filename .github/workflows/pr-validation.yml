@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -11,16 +15,18 @@ jobs:
       - name: Check PR is linked to an existing issue
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          PR_DATA=$(gh pr view $PR_NUMBER --repo ${{ github.repository }} --json body,linkedIssues)
+          set -euo pipefail
 
-          LINKED_ISSUES=$(echo "$PR_DATA" | jq '.linkedIssues | length')
+          pr_data=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json closingIssuesReferences)
+          linked_issues=$(jq -r '(.closingIssuesReferences // []) | length' <<< "$pr_data")
 
-          if [ "$LINKED_ISSUES" -eq 0 ]; then
+          if (( linked_issues == 0 )); then
             echo "ERROR: Pull request must be linked to an existing issue."
             echo "Use a closing keyword in the PR body, e.g.: Closes #123"
             exit 1
           fi
 
-          echo "PR is linked to $LINKED_ISSUES issue(s). Validation passed."
+          echo "PR is linked to $linked_issues issue(s). Validation passed."

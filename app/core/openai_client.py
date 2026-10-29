@@ -48,6 +48,7 @@ class OpenAICompatibleClient:
         system_prompt: str,
         user_message: str,
         params: GenerationParams | None = None,
+        response_schema: dict[str, Any] | None = None,
     ) -> str:
         payload: dict[str, Any] = {
             "model": model,
@@ -58,6 +59,11 @@ class OpenAICompatibleClient:
             "stream": False,
         }
         payload.update((params or GenerationParams()).to_payload())
+        if response_schema is not None:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "jabfy_proposal", "schema": response_schema},
+            }
 
         try:
             response = self._client.post(
