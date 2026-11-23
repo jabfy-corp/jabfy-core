@@ -1,7 +1,6 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.actions import ActionRequest
 from app.schemas.generation import GenerationParams
 
 
@@ -43,9 +42,3 @@ def test_rejects_out_of_range_temperature() -> None:
 def test_rejects_unknown_parameter() -> None:
     with pytest.raises(ValidationError):
         GenerationParams(repeat_penalty=1.1)
-
-
-def test_action_request_defaults_to_empty_params() -> None:
-    request = ActionRequest(model="qwen3", prompt="User enters the house")
-
-    assert request.params.to_payload() == {}

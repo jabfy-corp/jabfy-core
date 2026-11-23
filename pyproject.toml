@@ -11,15 +11,21 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1.0",
     "httpx>=0.28,<1.0",
+    "jsonschema>=4.23,<5.0",
     "pydantic>=2.10,<3.0",
     "python-dotenv>=1.0,<2.0",
     "uvicorn[standard]>=0.34,<1.0",
+    "jabfy-bus[mqtt] @ https://github.com/jabfy-corp/jabfy-bus/archive/c99d086c1189d60c75dbd9f68e1ef10e1b41f731.tar.gz",
+    "jabfy-guard @ https://github.com/jabfy-corp/jabfy-guard/archive/79d5e70ec34f35836592e71c804b0cbbc6b4293f.tar.gz",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3,<9.0",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

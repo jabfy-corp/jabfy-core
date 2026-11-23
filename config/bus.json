@@ -1,0 +1,20 @@
+{
+  "policies": [
+    {
+      "name": "core_lights_v1",
+      "effect": "allow",
+      "max_risk": "medium",
+      "domains": ["switch", "light"],
+      "actions": ["turn_on", "turn_off", "toggle", "set_brightness"],
+      "min_trust": "internal"
+    },
+    {
+      "name": "core_thermostat_v1",
+      "effect": "allow",
+      "max_risk": "high",
+      "domains": ["climate"],
+      "actions": ["set_temperature"],
+      "min_trust": "internal"
+    }
+  ]
+}

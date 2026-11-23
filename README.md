@@ -10,8 +10,9 @@ and mobile clients.
 - llama.cpp as the model backend, reached through its OpenAI-compatible API,
   with sampling parameters exposed
 - normalized JSON action proposals
-- deterministic validation before changes are returned as executable
-- no real device execution and no secrets stored in the repository
+- the `jabfy-bus` pipeline hosted in process: every command goes through the
+  bus verification engine before it is sent to an MQTT device
+- no secrets stored in the repository
 
 Email, calendar, messaging, enterprise integrations, voice, and TTS are
 deliberately outside this version.
@@ -19,27 +20,32 @@ deliberately outside this version.
 ## Architecture
 
 ```text
-Client -> FastAPI -> Universal JSON Bus normalization
-       -> model proposal -> JSON parser -> Verification Engine
-       -> validated response
+POST /prompt or sensor transition -> user_situation on the Universal JSON Bus
+  -> ActionOrchestrator -> model proposal -> command.requested
+  -> jabfy-bus VerificationEngine -> ExecutionLayer -> MQTT device
 ```
+
+See [docs/bus-integration.md](docs/bus-integration.md) for the full design,
+run statuses, API and configuration.
 
 The main modules are:
 
 - `app/api`: HTTP routes
-- `app/core`: model backends, prompts, parsing, verification, and orchestration
+- `app/core`: model backends, bus runtime, action orchestration, run journal,
+  and sanitisation
 - `app/schemas`: API and Universal JSON Bus contracts
-- `app/simulation`: supported Smart Home device registry
+- `app/simulation`: legacy device registry and live simulator discovery/proposals
 - `tests`: focused unit tests for deterministic behavior
 
 ## Installation
 
-Python 3.11 or newer and one reachable model backend are required.
+Python 3.11 or newer, one reachable model backend and a sibling `jabfy-bus`
+checkout (not published on a package index) are required.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e "../jabfy-bus[mqtt]" -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
@@ -89,82 +95,89 @@ curl http://localhost:8000/models
 When the backend is unavailable, `/models` returns an empty list with
 `available: false` and a diagnostic reason.
 
-Request an action proposal:
+Submit a request; Core plans and executes it through the bus:
 
 ```bash
-curl -X POST http://localhost:8000/act \
+curl -X POST http://localhost:8000/prompt \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "local-model",
-    "prompt": "User enters the house",
-    "device_state": {
-      "hallway_light": false,
-      "garage_door": true
-    },
-    "params": {
-      "temperature": 0.2,
-      "top_k": 20,
-      "n_predict": 300
-    }
-  }'
+  -d '{"model": "local-model", "prompt": "Turn on the living room lamp"}'
+# {"prompt_id": "..."}
+
+curl http://localhost:8000/prompts/<prompt_id>
 ```
 
-### Generation parameters
+Bus state, audit chain and live events:
 
-`params` is optional, and so is every field inside it. An omitted field is not
-sent to the server, which then applies its own default.
+```bash
+curl http://localhost:8000/state
+curl http://localhost:8000/audit/verify
+# WebSockets: /bus/events, /verification/decisions, /audit/live
+```
 
-| Field | Type | Range |
-| --- | --- | --- |
-| `temperature` | float | `0.0` - `2.0` |
-| `top_p` | float | `0.0` - `1.0` |
-| `top_k` | int | `>= 0` |
-| `min_p` | float | `0.0` - `1.0` |
-| `max_tokens` (alias `n_predict`) | int | `>= 1` |
-| `seed` | int | any |
-| `stop` | list of strings | any |
+### Custom simulated homes
 
-Unknown fields are rejected with HTTP 422 rather than silently ignored.
+`jabfy-sim ui` exposes the current home's rooms, devices, states, and action
+capabilities at `/api/ai/context`. Configure `JABFY_SIMULATION_URL` with the
+simulator's base URL (default `http://127.0.0.1:8080`). Discovery works without
+a model backend:
 
-Names are those of the OpenAI API, forwarded to llama.cpp as-is.
+```bash
+curl http://localhost:8000/simulation/home
+```
 
-Example response:
+Propose actions using that home's current inventory:
+
+```bash
+curl -X POST http://localhost:8000/simulation/propose \
+  -H "Content-Type: application/json" \
+  -d '{"model":"local-model","prompt":"Éclaire le bureau à moitié."}'
+```
+
+For a home containing a dimmable light named `desk_strip_42`, a valid response
+can be:
 
 ```json
 {
-  "action_chain": "User arrived home: turning on hallway light",
-  "changes": {
-    "hallway_light": true
-  },
-  "verification": {
-    "allowed": true,
-    "reason": "All requested device changes are valid.",
-    "safe_changes": {
-      "hallway_light": true
-    }
-  }
+  "explanation": "Éclairer le bureau à mi-luminosité.",
+  "commands": [
+    {"device_id": "desk_strip_42", "action": "set_brightness", "params": {"brightness": 127}}
+  ],
+  "context_revision": "the-current-home-revision"
 }
 ```
 
-Only `safe_changes` are copied to top-level `changes`. Unknown devices,
-non-boolean values, and malformed model output are rejected.
+Each proposal fetches a fresh inventory with a five-second network timeout.
+It uses the `JABFY_LLM_*` configuration. The
+OpenAI-compatible backend receives the proposal JSON Schema in `response_format`
+and a temperature of zero. It must support JSON-schema structured responses;
+the deterministic capability checks still run after generation.
+The model receives the actual home and custom device IDs. Names and inventory
+text are sanitised and explicitly treated as untrusted data in the model prompt. The entire proposal is checked
+against device capabilities and parameter JSON Schemas, including nested color
+values, required fields, numeric limits, and strict integer types. An invalid
+command rejects the whole proposal. Local schema references are supported;
+external schema references are rejected.
 
-## Universal JSON Bus
+`/simulation/home` and `/simulation/propose` never execute or publish device
+commands; `/prompt` does, through the bus. The simulation UI
+offers valid proposals for application through the simulator's verified command
+API, using `context_revision` to detect a changed home. A capability-valid proposal
+can still be denied by that execution policy. An unavailable or invalid simulator
+returns HTTP 503; an unavailable model backend or invalid proposal returns HTTP 502.
+Setting `JABFY_SIMULATION_URL` to an empty value disables discovery with HTTP 503.
+Clients cannot override the simulator destination in a request.
 
-`POST /act` is normalized internally to this first bus contract:
+When running the simulator UI on port 8080, use a different port for llama.cpp:
 
-```json
-{
-  "source": "smart_home_simulation",
-  "event_type": "user_situation",
-  "payload": {
-    "prompt": "User enters the house",
-    "device_state": {
-      "hallway_light": false
-    }
-  }
-}
+```bash
+llama-server -m /path/to/model.gguf --host 127.0.0.1 --port 8081
+# Core configuration:
+# JABFY_LLM_BASE_URL=http://localhost:8081/v1
+# JABFY_SIMULATION_URL=http://127.0.0.1:8080
 ```
+
+The existing simulator Docker stack can continue using its local Ollama server
+through that server's compatible `/v1` API. No Ollama Python SDK is needed.
 
 ## Configuration
 
@@ -174,11 +187,24 @@ Copy `.env.example` to `.env` and adjust:
 | --- | --- |
 | `JABFY_HOST` | `0.0.0.0` |
 | `JABFY_PORT` | `8000` |
+| `JABFY_LLM_PROVIDER` | `openai_compat` |
 | `JABFY_LLM_BASE_URL` | `http://localhost:8080/v1` |
 | `JABFY_LLM_API_KEY` | empty |
+| `JABFY_LLM_TIMEOUT_SECONDS` | `120` |
 | `JABFY_ALLOWED_ORIGINS` | `http://localhost:5173` |
+| `JABFY_SIMULATION_URL` | `http://127.0.0.1:8080` |
+| `JABFY_MQTT_BROKER` | empty (no MQTT) |
+| `JABFY_BUS_CONFIG` | `config/bus.json` |
+| `JABFY_HEADLESS_MODEL` | empty (sensors do not trigger the model) |
+| `JABFY_HEADLESS_COOLDOWN_SECONDS` | `30` |
 
 Multiple allowed origins can be separated by commas.
+When Core runs in a container, use a simulator address reachable from that
+container, such as `http://host.docker.internal:8080` on Docker Desktop.
+For compatibility with the published simulator Compose, when `JABFY_LLM_BASE_URL`
+is absent, a non-empty legacy `OLLAMA_HOST` is converted to `<host>/v1`.
+An explicit `JABFY_LLM_BASE_URL` always takes precedence. New deployments should
+use `JABFY_LLM_BASE_URL` directly (e.g. `http://ollama:11434/v1` inside that stack).
 
 ## Tests
 
@@ -186,15 +212,63 @@ Multiple allowed origins can be separated by commas.
 pytest
 ```
 
+Full pipeline integration test (MASTER_PLAN §2.7): it starts Mosquitto in
+Docker, the sibling `jabfy-simulation` checkout and Core, with a fixed
+OpenAI-compatible model answer, then triggers a simulated motion and checks
+`command.requested` → `command.approved` → `command.executed` on
+`/bus/events`, the simulated lamp and `/audit/verify`:
+
+```bash
+JABFY_INTEGRATION=1 pytest tests/integration
+```
+
+## Conteneur et déploiement
+
+Le dépôt publie une image OCI dans GitHub Container Registry à chaque push vers
+`main` :
+
+```text
+ghcr.io/jabfy-corp/jabfy-core:latest
+ghcr.io/jabfy-corp/jabfy-core:sha-<commit>
+```
+
+Pour un déploiement reproductible, utiliser le digest affiché dans le résumé du
+workflow plutôt que `latest` :
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e JABFY_LLM_BASE_URL=http://host.docker.internal:8081/v1 \
+  -e JABFY_SIMULATION_URL=http://host.docker.internal:8080 \
+  ghcr.io/jabfy-corp/jabfy-core@sha256:<digest>
+```
+
+Le serveur de modèle reste un service externe : l'image ne contient ni modèle ni secret.
+
+`jabfy-bus` et `jabfy-guard` n'étant pas publiés, la construction locale de l'image
+demande leurs dépôts voisins comme contextes supplémentaires :
+
+```bash
+docker build --build-context jabfy-bus=../jabfy-bus --build-context jabfy-guard=../jabfy-guard -t jabfy-core .
+```
+
 ## V1 limitations
 
-- the verifier only checks the known device registry and boolean values
-- no policy rules, permissions, rate limits, or physical device adapters
-- backend calls are synchronous and not streamed
-- the Universal JSON Bus currently supports only `user_situation`
+- `/simulation/propose` checks the current simulator's advertised capabilities
+- jabfy-guard authorizes every command of Core's bus, with rules built from
+  `config/bus.json`: only lights, switches and the thermostat are allowed, at most
+  60 commands per minute per policy
+- runs are processed one at a time; the run journal is in memory
 - reasoning models that return their output in `reasoning_content` leave
   `content` empty, and the proposal is then rejected by the parser
 - `min_p` is ignored by backends that do not implement it
+- actions are sent on the `zigbee` transport only (`ActionOrchestrator`), so Core
+  reaches MQTT devices; simulator devices served over HTTP or Modbus are driven
+  from the simulator dashboard, not from Core
 
-The next security step is extracting `jabfy-guard` into a more advanced policy
-and verification layer before any real device executor is introduced.
+In the V0.0.1 virtual-home stack, final authorization is performed by jabfy-guard
+inside the simulator's Bus pipeline, after the user applies a proposal. Core remains
+proposal-only and rejects inventory from an inactive simulation. Set
+`JABFY_LLM_BASE_URL=http://ollama:11434/v1` and
+`JABFY_SIMULATION_URL=http://jabfy-sim:8080` in the shared Docker network.
+See the sibling jabfy-deploy repository's `docs/v0.0.1.md` for the complete launcher.
+Physical device execution and authenticated multi-user operation remain out of scope.

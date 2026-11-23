@@ -1,6 +1,6 @@
 import pytest
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.llm_client import build_llm_client
 from app.core.openai_client import OpenAICompatibleClient
 
@@ -38,3 +38,23 @@ def test_defaults_to_local_llama_cpp_server() -> None:
     assert settings.llm_api_key is None
     assert settings.llm_timeout == 120.0
     assert settings.llm_provider == "openai_compat"
+
+
+@pytest.mark.parametrize("explicit_url,expected", [
+    (None, "http://ollama:11434/v1"),
+    ("http://llama:8080/v1", "http://llama:8080/v1"),
+])
+def test_legacy_compose_url_is_only_a_fallback(monkeypatch, explicit_url, expected):
+    monkeypatch.setattr("app.core.config.load_dotenv", lambda: None)
+    monkeypatch.setenv("OLLAMA_HOST", "http://ollama:11434/")
+    if explicit_url is None:
+        monkeypatch.delenv("JABFY_LLM_BASE_URL", raising=False)
+    else:
+        monkeypatch.setenv("JABFY_LLM_BASE_URL", explicit_url)
+    get_settings.cache_clear()
+    try:
+        settings = get_settings()
+        assert settings.llm_base_url == expected
+        assert not hasattr(settings, "ollama_host")
+    finally:
+        get_settings.cache_clear()

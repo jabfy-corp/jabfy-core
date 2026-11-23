@@ -1,6 +1,6 @@
 # Interfaces
 
-La spécification complète et à jour est générée par FastAPI : `http://localhost:8000/docs` (Swagger) et `/openapi.json`.
+La spécification complète des routes HTTP est générée par FastAPI : `http://localhost:8000/docs` (Swagger) et `/openapi.json`.
 
 ## API HTTP
 
@@ -8,7 +8,12 @@ La spécification complète et à jour est générée par FastAPI : `http://loca
 |---|---|---|
 | GET | `/health` | `{"status": "ok", "service": "jabfy-core"}` |
 | GET | `/models` | Modèles disponibles sur le backend |
-| POST | `/act` | Proposition d'actions vérifiée |
+| POST | `/prompt` | Lance une exécution : plan du modèle puis commandes vérifiées |
+| GET | `/prompts/{prompt_id}` | État d'une exécution et de ses étapes |
+| GET | `/state` | Connexion MQTT et entités connues |
+| GET | `/audit/verify` | Vérifie la chaîne de hachage du journal d'audit |
+| GET | `/simulation/home` | Inventaire de la maison simulée |
+| POST | `/simulation/propose` | Proposition d'actions, sans exécution |
 
 ### `GET /models`
 
@@ -18,85 +23,122 @@ La spécification complète et à jour est générée par FastAPI : `http://loca
 
 Si le backend est injoignable : `models: []`, `available: false` et un `reason`.
 
-### `POST /act`
+### `POST /prompt`
 
 ```bash
-curl -X POST http://localhost:8000/act \
+curl -X POST http://localhost:8000/prompt \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "local-model",
-    "prompt": "User enters the house",
-    "device_state": { "hallway_light": false, "garage_door": true },
-    "params": { "temperature": 0.2, "top_k": 20, "n_predict": 300 }
-  }'
+  -d '{"model": "local-model", "prompt": "Allume la lampe du salon"}'
+```
+
+```json
+{"prompt_id": "3f0c…"}
 ```
 
 | Champ | Type | Obligatoire |
 |---|---|---|
 | `model` | string | oui |
-| `prompt` | string, la situation | oui |
-| `device_state` | objet `id d'appareil → booléen` | non |
-| `params` | paramètres de génération | non |
-
-Réponse :
-
-```json
-{
-  "action_chain": "User arrived home: turning on hallway light",
-  "changes": { "hallway_light": true },
-  "verification": {
-    "allowed": true,
-    "reason": "All requested device changes are valid.",
-    "safe_changes": { "hallway_light": true }
-  }
-}
-```
-
-`changes` ne contient que les `safe_changes`. Si la proposition est refusée, `changes` est vide et `verification.reason` explique pourquoi.
+| `prompt` | string | oui |
 
 | Code | Cas |
 |---|---|
-| 200 | Réponse normale, y compris une proposition refusée par le vérificateur |
-| 422 | Corps invalide, champ inconnu (y compris dans `params`) |
-| 502 | Backend du modèle indisponible |
+| 202 | Exécution acceptée, traitée en arrière-plan |
+| 422 | Corps invalide |
+| 429 | Trop d'exécutions en attente |
 
-### Paramètres de génération (`params`)
-
-Tous facultatifs. Les noms sont ceux de l'API OpenAI, transmis tels quels à llama.cpp.
-
-| Champ | Type | Plage |
-|---|---|---|
-| `temperature` | float | `0.0` à `2.0` |
-| `top_p` | float | `0.0` à `1.0` |
-| `top_k` | int | `>= 0` |
-| `min_p` | float | `0.0` à `1.0` |
-| `max_tokens` (alias `n_predict`) | int | `>= 1` |
-| `seed` | int | quelconque |
-| `stop` | liste de chaînes | quelconque |
-
-## Appareils reconnus
-
-`hallway_light`, `hallway_window`, `living_room_light`, `living_room_window`, `living_room_tv`, `kitchen_light`, `kitchen_window`, `bedroom_light`, `bedroom_window`, `bathroom_light`, `bathroom_window`, `garage_light`, `garage_door`, `house_lock`, `climatisation`, `heater`, `alarm`.
-
-## Contrat de bus (mini-version)
-
-Sur `main`, `/act` est normalisé en interne vers un premier contrat inspiré du Universal JSON Bus. Seul `user_situation` existe :
+### `GET /prompts/{prompt_id}`
 
 ```json
 {
-  "source": "smart_home_simulation",
-  "event_type": "user_situation",
-  "payload": {
-    "prompt": "User enters the house",
-    "device_state": { "hallway_light": false }
-  }
+  "id": "3f0c…",
+  "source": "prompt",
+  "model": "local-model",
+  "request": "Allume la lampe du salon",
+  "status": "completed",
+  "explanation": "Allumer la lampe du salon.",
+  "error": null,
+  "steps": [
+    {
+      "device_id": "salon_lamp", "action": "turn_on", "params": {}, "delay_ms": 0,
+      "request_id": "9a1e…", "status": "executed", "reason": null,
+      "history": [
+        {"status": "requested", "time": "…"},
+        {"status": "approved", "time": "…"},
+        {"status": "executed", "time": "…"}
+      ]
+    }
+  ],
+  "created_at": "…",
+  "finished_at": "…"
 }
 ```
 
-Ce contrat n'est pas celui de jabfy-bus (schémas v1.0 dans le dépôt jabfy-bus).
+HTTP 404 pour une exécution inconnue ou sortie du journal. Les statuts sont décrits dans [Fonctionnement interne](fonctionnement.md#statuts).
+
+### `GET /state`
+
+```json
+{
+  "mqtt_connected": true,
+  "entities": [
+    {"id": "…", "domain": "light", "class": "…", "location": "…", "last_value": "…", "last_seen": "…"}
+  ]
+}
+```
+
+### `GET /audit/verify`
+
+```json
+{"verified": true, "records": 42}
+```
+
+### `GET /simulation/home` et `POST /simulation/propose`
+
+`/simulation/home` renvoie l'inventaire courant du simulateur (pièces, appareils, états, capacités). `/simulation/propose` prend le même corps que `/prompt` et renvoie une proposition **sans l'exécuter** :
+
+```json
+{
+  "explanation": "Éclairer le bureau à mi-luminosité.",
+  "commands": [
+    {"device_id": "desk_strip_42", "action": "set_brightness", "params": {"brightness": 127}, "delay_ms": 0}
+  ],
+  "context_revision": "…"
+}
+```
+
+`context_revision` permet au simulateur de détecter une maison modifiée entre la proposition et son application.
+
+| Code | Cas |
+|---|---|
+| 503 | Simulateur indisponible, inventaire invalide ou simulation inactive |
+| 502 | Backend du modèle indisponible ou proposition invalide |
+
+## WebSockets
+
+Fournies par jabfy-bus, elles diffusent les messages du bus en direct :
+
+| Route | Contenu |
+|---|---|
+| `/bus/events` | Tous les messages du bus |
+| `/verification/decisions` | Décisions de vérification |
+| `/audit/live` | Entrées du journal d'audit |
+
+Une connexion de navigateur n'est acceptée que si son `Origin` figure dans `JABFY_ALLOWED_ORIGINS` ; un client sans en-tête `Origin` (CLI, tests) est accepté.
+
+## Messages publiés sur le bus
+
+| Type | Quand |
+|---|---|
+| `user_situation` | `POST /prompt`, ou transition d'un capteur en mode autonome |
+| `automation.core_reasoning` | Explication du plan par le modèle |
+| `command.requested` | Chaque commande du plan, sur le transport `zigbee` |
+
+Les décisions (`command.approved`, `command.rejected`) et les résultats (`command.executed`) sont publiés par jabfy-bus. Le format des messages est celui de jabfy-bus (page `message-schema.md` de jabfy-bus).
 
 ## Appels sortants
 
 | Cible | Appel |
 |---|---|
-| Serveur LLM | `GET {JABFY_LLM_BASE_URL}/models`, `POST {JABFY_LLM_BASE_URL}/chat/completions` (`stream: false`) |
+| Serveur LLM | `GET {JABFY_LLM_BASE_URL}/models`, `POST {JABFY_LLM_BASE_URL}/chat/completions` |
+| jabfy-simulation | `GET {JABFY_SIMULATION_URL}/api/ai/context`, délai réseau de 5 secondes |
+| Broker MQTT | publication sur `<topic>/set` de l'appareil |
