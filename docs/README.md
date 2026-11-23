@@ -33,6 +33,7 @@ Le pipeline de jabfy-bus tourne dans le processus de jabfy-core. La vérificatio
 - [Interfaces](interfaces.md)
 - [Intégration du bus et mode autonome](bus-integration.md) (en anglais)
 - [Documentation du code, fichier par fichier](code/README.md)
+- [Tests](tests.md)
 
 ## Tests
 
@@ -40,7 +41,7 @@ Le pipeline de jabfy-bus tourne dans le processus de jabfy-core. La vérificatio
 pytest
 ```
 
-Les tests unitaires n'ont besoin d'aucun serveur LLM ni broker (clients injectables). Ils couvrent l'orchestrateur et les séquences, le journal des exécutions, le nettoyage des entrées, l'autorisation par jabfy-guard, la découverte de la simulation et le client OpenAI-compatible. La CI (`ci.yml`) les lance en Python 3.11 sur chaque PR vers `main`.
+Les tests unitaires n'ont besoin d'aucun serveur LLM ni broker (clients injectables). Ils couvrent l'orchestrateur et les séquences, le journal des exécutions, le nettoyage des entrées, l'autorisation par jabfy-guard, la découverte de la simulation et le client OpenAI-compatible. La CI (`ci.yml`) les lance en Python 3.11 sur chaque PR vers `main`. Détail et conventions : [Tests](tests.md).
 
 Le test d'intégration complet démarre Mosquitto dans Docker, le dépôt voisin `jabfy-simulation` et jabfy-core, avec une réponse de modèle fixe :
 
