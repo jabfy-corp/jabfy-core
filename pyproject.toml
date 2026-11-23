@@ -16,7 +16,7 @@ dependencies = [
     "python-dotenv>=1.0,<2.0",
     "uvicorn[standard]>=0.34,<1.0",
     "jabfy-bus[mqtt] @ https://github.com/jabfy-corp/jabfy-bus/archive/c99d086c1189d60c75dbd9f68e1ef10e1b41f731.tar.gz",
-    "jabfy-guard @ https://github.com/jabfy-corp/jabfy-guard/archive/79d5e70ec34f35836592e71c804b0cbbc6b4293f.tar.gz",
+    "jabfy-guard @ https://github.com/jabfy-corp/jabfy-guard/archive/533c144b0049de74dfb1c185de77531ada3b6bd5.tar.gz",
 ]
 
 [project.optional-dependencies]
