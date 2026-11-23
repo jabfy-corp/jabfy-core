@@ -185,17 +185,12 @@ Any other command (blinds, air conditioning, locks…) is rejected by default.
 
 ## Dependency on jabfy-bus
 
-`pyproject.toml` depends on `jabfy-bus[mqtt]`, which is not published on a
-package index. Locally:
+`pyproject.toml` pins `jabfy-bus[mqtt]` and `jabfy-guard` to a commit of their
+GitHub repositories. `pip install -e ".[dev]"` and `docker build -t jabfy-core .`
+fetch them, with no sibling checkout. To work on a local copy of the bus:
 
 ```bash
-pip install -e "../jabfy-bus[mqtt]" -e ".[dev]"
-```
-
-The image is built with an extra build context:
-
-```bash
-docker build --build-context jabfy-bus=../jabfy-bus -t jabfy-core .
+pip install -e ".[dev]" -e "../jabfy-bus[mqtt]"
 ```
 
 Core requires a jabfy-bus version that provides the `user_situation` message
